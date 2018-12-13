@@ -5,7 +5,7 @@ import logging
 from elements import *
 
 def parse_file(file):
-    logging.info("Parsing file %s" % file)
+    logging.info("Parsing file %s" % file.name)
     tree = _strip_ns_prefix(etree.parse(file))
 
     filename = tree.xpath("//Page/@imageFilename")[0]
@@ -14,7 +14,7 @@ def parse_file(file):
 
     page = Page(filename, width, height)
 
-    def parse_line(el):
+    def _parse_line(el):
         text = el.xpath(".//Unicode/text()")
         text = text[0] if len(text) else None
         coordsStr = el.xpath(".//Coords/@points")[0]
@@ -22,7 +22,7 @@ def parse_file(file):
         coords = list(map(lambda x: int(x), re.findall("[0-9]+", coordsStr)))
         return TextLine(text, page, coords[0], coords[1], coords[4], coords[5])
 
-    lines = list(map(parse_line, tree.xpath("//TextLine")))
+    lines = list(map(_parse_line, tree.xpath("//TextLine")))
     return lines
     
 

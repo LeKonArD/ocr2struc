@@ -38,11 +38,14 @@ for line in parsed_lines:
     if current_page == None or current_page != line.page:
         output.append(PageBreak(line.page))
         current_page = line.page
-        output.append(VerticalSpace(line.ay, line.page))
+        space = VerticalSpace(line.ay, line.page)
+        space.annotations["pos"] = "%d,%d %d,%d" % (0, 0, line.ax, line.ay)
     else:
         offset = line.ay - last_line.by
-        output.append(VerticalSpace(offset, line.page))
+        space = VerticalSpace(offset, line.page)
+        space.annotations["pos"] = "%d,%d %d,%d" % (last_line.bx, last_line.by, line.ax, line.ay)
 
+    output.append(space)
     output.append(line)
     last_line = line
 

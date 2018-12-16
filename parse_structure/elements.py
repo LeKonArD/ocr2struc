@@ -10,15 +10,15 @@ class Page:
 class LayoutElement:
 
     def __init__(self):
-        self.attributes = {}
+        self.annotations = {}
 
     def toelem(self):
         raise NotImplementedError('Unterklassen müssen toelem() implementieren')
 
-    def attrstoelem(self):
-        root = etree.Element("Attributes")
-        for key, val in self.attributes.items():
-            att = etree.SubElement(root, "Attribute", attrib={ "key": str(key), "value": str(val)})
+    def annotationstoelem(self):
+        root = etree.Element("Annotations")
+        for key, val in self.annotations.items():
+            att = etree.SubElement(root, "Annotation", attrib={ "key": str(key), "value": str(val)})
 
         return root
 
@@ -32,6 +32,7 @@ class TextLine(LayoutElement):
         self.by = by
         self.text = text
         self.page = page
+        self.annotations = { "pos": "%d,%d %d,%d" % (self.ax, self.ay, self.bx, self.by) }
 
     def __str__(self):
         return "<Line at (%f, %f) (%f, %f)>" % (self.ax, self.ay, self.bx, self.by)
@@ -50,7 +51,7 @@ class TextLine(LayoutElement):
 
     def toelem(self):
         root = etree.Element("TextLine")
-        # root.append(self.attrstoelem())
+        root.append(self.annotationstoelem())
         etree.SubElement(root, "TextEquiv").text = self.text
         root.set("linewidth", str(self.linewidth()))
         root.set("lineheight", str(self.lineheight()))
@@ -69,7 +70,7 @@ class PageBreak(LayoutElement):
 
     def toelem(self):
         root = etree.Element("PageBreak")
-        # root.append(self.attrstoelem())
+        root.append(self.annotationstoelem())
         root.set("filename", str(self.nextPage.filename))
         root.set("width", str(self.nextPage.width))
         root.set("height", str(self.nextPage.height))
@@ -87,6 +88,6 @@ class VerticalSpace(LayoutElement):
 
     def toelem(self):
         root = etree.Element("VerticalSpace")
-        # root.append(self.attrstoelem())
+        root.append(self.annotationstoelem())
         root.set("offset", str(self.offset))
         return root

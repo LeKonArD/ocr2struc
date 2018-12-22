@@ -23,6 +23,7 @@ args = parser.parse_args()
 
 # Einlesen der Dateien, Sortieren
 parsed_lines = reduce(list.__add__, map(parse_file, args.input))
+parsed_lines.sort(key=(lambda x: x.ax))
 parsed_lines.sort(key=(lambda x: x.ay))
 parsed_lines.sort(key=(lambda x: x.page.filename))
 

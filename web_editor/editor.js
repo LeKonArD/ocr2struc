@@ -124,17 +124,17 @@ application.setForm = function(elements) {
     const newTableHTML = elements.map(x => {
         const form = selectFormEl(x).outerHTML;
 
-        // TODO attach ID
+        const xmlid = x.querySelector('Annotation[key="id"]').attributes.value.value;
         if (x.matches('VerticalSpace')) {
-            return `<tr class="vspace"><td>[VSpace]</td><td>${form}</td></tr>`;
+            return `<tr class="vspace" data-xml-id="${xmlid}"><td>[VSpace]</td><td>${form}</td></tr>`;
         } else if (x.matches('TextLine')) {
             var line = x.querySelector('TextEquiv').textContent;
             line = line == '' ? '[Leerzeile]' : line;
 
-            return `<tr class="textline"><td>${line}</td><td>${form}</td></tr>`;
+            return `<tr class="textline" data-xml-id="${xmlid}"><td>${line}</td><td>${form}</td></tr>`;
         } else {
             const name = x.nodeName;
-            return `<tr class="other"><td>[${name}]</td></tr>`;
+            return `<tr class="other" data-xml-id="${xmlid}"><td>[${name}]</td></tr>`;
         }
     }).reduce((a, b) => a + b, '');
 
@@ -143,15 +143,15 @@ application.setForm = function(elements) {
 
     document.querySelectorAll('.items-table select').forEach(el => el.addEventListener('change', () => {
         that.updateClass(el);
-        that.drawPage(elements);
+        that.drawPage(elements, el.closest('tr').attributes["data-xml-id"].value);
     }));
 
     document.querySelectorAll('.items-table select').forEach(el => el.addEventListener('focus', () => {
-        that.drawPage(elements);
+        that.drawPage(elements, el.closest('tr').attributes["data-xml-id"].value);
     }));
 }
 
-application.drawPage = function(elements) {
+application.drawPage = function(elements, selectedId) {
     // TODO click handler?
 
     const canvas = document.getElementById('image-canvas');
@@ -173,21 +173,35 @@ application.drawPage = function(elements) {
     elements.forEach(x => drawElem(x, ctx));
 
     function drawElem(e, ctx) {
+        const idStr = e.querySelector('Annotation[key="id"]').attributes.value.value;
+        var selected = idStr == selectedId;
+
         if (e.matches('TextLine')) {
             const coordStr = e.querySelector('Annotation[key="pos"]').attributes.value.value;
             const nums = coordStr.split(/[, ]/).map(x => parseInt(x));
 
-            ctx.strokeStyle = '#008800';
-            ctx.lineWidth = 1;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            if (!selected) {
+                ctx.strokeStyle = '#008800';
+                ctx.lineWidth = 1;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.01)';
+            } else {
+                ctx.strokeStyle = '#008800';
+                ctx.lineWidth = 2;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.10)';
+            }
             ctx.strokeRect(nums[0], nums[1], nums[2]-nums[0], nums[3]-nums[1]);
             ctx.fillRect(nums[0], nums[1], nums[2]-nums[0], nums[3]-nums[1]);
         } else if (e.matches('VerticalSpace')) {
             const coordStr = e.querySelector('Annotation[key="pos"]').attributes.value.value;
             const nums = coordStr.split(/[, ]/).map(x => parseInt(x));
 
-            ctx.strokeStyle = '#ee0000';
-            ctx.lineWidth = 1;
+            if (!selected) {
+                ctx.strokeStyle = '#ee4444';
+                ctx.lineWidth = 1;
+            } else {
+                ctx.strokeStyle = '#ee0000';
+                ctx.lineWidth = 2;
+            }
             ctx.beginPath();
             ctx.moveTo(nums[0], nums[1]);
             ctx.lineTo(nums[2], nums[3]);

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+
+<html>
+
+    <head>
+        <link rel="stylesheet" href="style.css">
+    </head>
+
+    <body>
+        <div class="canvas-container">
+            <canvas id="image-canvas"></canvas>
+        </div>
+        <div class="text-container">
+            <div class="controls">
+                <p>
+                    <label>XML:</label>
+                    <input id="xmlinput" multiple=false type="file"></input>
+                    <label>Bilder:</label>
+                    <input id="imagedir" webkitdirectory type="file"></input>
+                    <button>Save</button>
+                </p>
+                <p>
+                    <button id="prevpage">&lt;</button>
+                    <select id="pageselect"></select>
+                    <button id="nextpage">&gt;</button>
+                </p>
+            </div>
+
+            <table class="items-table">
+                <tbody>
+                    <!--<tr>
+                        <td>[Vspace]</td>
+                        <td>
+                            <select><option>[leer]</option><option>gedicht-start</option><option>strophe-start</option></select>
+                            <input type="text"></input>
+                        </td>
+                    </tr>-->
+                </tbody>
+            </table>
+        </div>
+    </body>
+
+    <script src="editor.js"></script>
+
+</html>

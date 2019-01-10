@@ -1,0 +1,28 @@
+body {
+    min-width: 1300px;
+    min-height: 700px;
+    display: flex;
+}
+
+.canvas-container {
+    width: 50%;
+    height 100%;
+}
+
+.canvas-container #image-canvas {
+    position: fixed;
+}
+
+.items-table tr > td:first-child {
+    min-width: 25em;
+}
+
+.items-table tr.vspace,
+.items-table tr.other
+{
+    color: #888;
+}
+
+.items-table tr td select {
+    width: 120px;
+}

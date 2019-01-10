@@ -22,3 +22,7 @@ body {
 {
     color: #888;
 }
+
+.items-table tr td select {
+    width: 120px;
+}

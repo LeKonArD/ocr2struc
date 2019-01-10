@@ -88,7 +88,7 @@ application.setPage = function(n) {
 application.setForm = function(elements) {
     var that = this;
     function selectFormEl(x) {
-        const ann = x.querySelector(`Annotations > Annotation[${that.classAttribute}]`);
+        const ann = x.querySelector(`Annotations > Annotation[key="${that.classAttribute}"]`);
         
         var current = undefined;
         if (ann) {
@@ -136,22 +136,23 @@ application.setForm = function(elements) {
             const name = x.nodeName;
             return `<tr class="other" data-xml-id="${xmlid}"><td>[${name}]</td></tr>`;
         }
-    }).reduce((a, b) => a + b, '');
+    }).join('');
 
     document.querySelector('.items-table tbody').innerHTML = newTableHTML;
     document.querySelectorAll('.items-table select').forEach(el => that.updateClass(el));
 
     document.querySelectorAll('.items-table select').forEach(el => el.addEventListener('change', () => {
         that.updateClass(el);
-        that.drawPage(elements, el.closest('tr').attributes["data-xml-id"].value);
+        that.drawPage(elements, el.closest('tr').attributes['data-xml-id'].value);
     }));
 
     document.querySelectorAll('.items-table select').forEach(el => el.addEventListener('focus', () => {
-        that.drawPage(elements, el.closest('tr').attributes["data-xml-id"].value);
+        that.drawPage(elements, el.closest('tr').attributes['data-xml-id'].value);
     }));
 }
 
 application.drawPage = function(elements, selectedId) {
+    var that = this;
     // TODO click handler?
 
     const canvas = document.getElementById('image-canvas');
@@ -174,7 +175,12 @@ application.drawPage = function(elements, selectedId) {
 
     function drawElem(e, ctx) {
         const idStr = e.querySelector('Annotation[key="id"]').attributes.value.value;
-        var selected = idStr == selectedId;
+        const selected = idStr == selectedId;
+
+        var classStr;
+        if (e.querySelector(`Annotation[key="${that.classAttribute}"]`)) {
+            classStr = e.querySelector(`Annotation[key="${that.classAttribute}"]`).attributes.value.value;
+        }
 
         if (e.matches('TextLine')) {
             const coordStr = e.querySelector('Annotation[key="pos"]').attributes.value.value;
@@ -183,14 +189,17 @@ application.drawPage = function(elements, selectedId) {
             if (!selected) {
                 ctx.strokeStyle = '#008800';
                 ctx.lineWidth = 1;
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.01)';
+                ctx.globalAlpha = classStr ? .2 : .01;
+                ctx.fillStyle = classStr ? that.lineClasses[classStr] : '#000000';
             } else {
                 ctx.strokeStyle = '#008800';
                 ctx.lineWidth = 2;
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.10)';
+                ctx.globalAlpha = classStr ? .4 : .10;
+                ctx.fillStyle = classStr ? that.lineClasses[classStr] : '#000000';
             }
-            ctx.strokeRect(nums[0], nums[1], nums[2]-nums[0], nums[3]-nums[1]);
             ctx.fillRect(nums[0], nums[1], nums[2]-nums[0], nums[3]-nums[1]);
+            ctx.globalAlpha = 1;
+            ctx.strokeRect(nums[0], nums[1], nums[2]-nums[0], nums[3]-nums[1]);
         } else if (e.matches('VerticalSpace')) {
             const coordStr = e.querySelector('Annotation[key="pos"]').attributes.value.value;
             const nums = coordStr.split(/[, ]/).map(x => parseInt(x));
@@ -206,6 +215,17 @@ application.drawPage = function(elements, selectedId) {
             ctx.moveTo(nums[0], nums[1]);
             ctx.lineTo(nums[2], nums[3]);
             ctx.stroke();
+
+            if (classStr) {
+                ctx.fillStyle = that.vspaceClasses[classStr];
+                ctx.beginPath();
+                ctx.moveTo(nums[2], nums[3]);
+                ctx.lineTo(nums[2] - 20, nums[3] - 10);
+                ctx.lineTo(nums[2] - 20, nums[3] + 10);
+                ctx.closePath();
+                ctx.fill();
+
+            }
         }
     }
 }
@@ -223,6 +243,39 @@ application.updateClass = function(el) {
     }
 
     // TODO Add to XML
+    const id = el.closest('tr').attributes['data-xml-id'].value;
+    const xmlEl = this.currentDocument.querySelector(`Annotation[key="id"][value="${id}"]`).parentElement.parentElement;
+    const classStr = val == '-' ? '' : val;
+
+
+    var classAnnotation = xmlEl.querySelector(`Annotations > Annotation[key="${this.classAttribute}"]`);
+    if (!classAnnotation && classStr) {
+        classAnnotation = new DOMParser().parseFromString('<Annotation />', 'application/xml').children[0];
+        classAnnotation.setAttribute('key', this.classAttribute);
+        xmlEl.querySelector('Annotations').appendChild(classAnnotation);
+    }
+
+    if (classAnnotation) classAnnotation.setAttribute('value', classStr);
+}
+
+application.saveFile = function(filename) {
+    const serializer = new XMLSerializer();
+    var sXML = serializer.serializeToString(this.currentDocument);
+
+    function download(filename, text) {
+        var element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        element.setAttribute('download', filename);
+
+        element.style.display = 'none';
+        document.body.appendChild(element);
+
+        element.click();
+
+        document.body.removeChild(element);
+    }
+
+    download(filename, sXML);
 }
 
 
@@ -240,6 +293,11 @@ document.getElementById('xmlinput').addEventListener('change', function() {
     }
 });
 
+document.getElementById('imagedir').addEventListener('change', function() {
+    const page = parseInt(document.getElementById('pageselect').value);
+    application.setPage(page);
+});
+
 document.getElementById('prevpage').addEventListener('click', function() {
     const page = parseInt(document.getElementById('pageselect').value);
     application.setPage(page - 1);
@@ -248,4 +306,9 @@ document.getElementById('prevpage').addEventListener('click', function() {
 document.getElementById('nextpage').addEventListener('click', function() {
     const page = parseInt(document.getElementById('pageselect').value);
     application.setPage(page + 1);
+});
+
+document.getElementById('save').addEventListener('click', function() {
+    var file = document.getElementById('xmlinput').files[0];
+    application.saveFile(file.name);
 });

@@ -308,6 +308,11 @@ document.getElementById('nextpage').addEventListener('click', function() {
     application.setPage(page + 1);
 });
 
+document.getElementById('pageselect').addEventListener('change', function() {
+    const page = parseInt(document.getElementById('pageselect').value);
+    application.setPage(page);
+});
+
 document.getElementById('save').addEventListener('click', function() {
     var file = document.getElementById('xmlinput').files[0];
     application.saveFile(file.name);

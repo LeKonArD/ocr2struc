@@ -1,14 +1,17 @@
 var application = {
     currentDocument: null,
     vspaceClasses: {
-        'gedicht-start': 'red', 'strophe-start': 'blue'
+        'gedicht-start': 'red',
+        'strophe-start': 'blue',
+        'ignore': '#773387'
     },
     lineClasses: {
         'vers': 'darkblue',
         'titel': 'darkred',
         'autor': 'darkcyan',
         'kopfzeile': 'darkorange',
-        'fusszeile': 'darkorange'
+        'fusszeile': 'darkorange',
+        'sonstig': '#db66ff'
     },
     classAttribute: 'classes'
 };
@@ -220,8 +223,8 @@ application.drawPage = function(elements, selectedId) {
                 ctx.fillStyle = that.vspaceClasses[classStr];
                 ctx.beginPath();
                 ctx.moveTo(nums[2], nums[3]);
-                ctx.lineTo(nums[2] - 20, nums[3] - 10);
-                ctx.lineTo(nums[2] - 20, nums[3] + 10);
+                ctx.lineTo(nums[2] - 15, nums[3] - 7);
+                ctx.lineTo(nums[2] - 15, nums[3] + 7);
                 ctx.closePath();
                 ctx.fill();
 

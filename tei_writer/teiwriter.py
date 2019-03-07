@@ -13,6 +13,7 @@ class TeiWriter:
         self.current_author = None
         self.current_poem = None
         self.current_stanza = None
+        self.page_counter = 1
 
     def close_poem(self):
         if self.current_poem is None:
@@ -39,9 +40,9 @@ class TeiWriter:
         self.current_poem = etree.Element('div')
         self.current_poem.attrib['type'] = 'poem'
 
-        if self.postponed_pagebreak:
-            self.add_pb()
-            self.postponed_pagebreak = False
+        if self.postponed_pagebreak is not None:
+            self.add_pb(self.postponed_pagebreak)
+            self.postponed_pagebreak = None
 
     def close_stanza(self):
         if self.current_stanza is None:
@@ -66,67 +67,76 @@ class TeiWriter:
         byline.text = text
         self.current_poem.append(byline)
 
-    def add_pb(self):
+    def add_pb(self, pagefile):
         if self.current_poem is not None:
             if self.current_stanza is not None:
-                etree.SubElement(self.current_stanza, 'pb')
+                el = etree.SubElement(self.current_stanza, 'pb')
             else:
-                etree.SubElement(self.current_poem, 'pb')
+                el = etree.SubElement(self.current_poem, 'pb')
+
+            el.attrib['facs'] = pagefile
+            el.attrib['n'] = str(self.page_counter)
+            self.page_counter += 1
         else:
-            self.postponed_pagebreak = True
+            self.postponed_pagebreak = pagefile
 
     def process(self, elements):
         p = _process_ignored(map(_map_el, elements))
 
-        for (tagname, classes, text) in p:
-            self.process_element(tagname, classes, text)
+        for el in p:
+            self.process_element(el)
 
         # schließe noch offene Elemente
         self.close_stanza()
         self.close_poem()
 
-    def process_element(self, tagname, classes, text):
+    def process_element(self, el):
+        tagname = el['tagname']
+        classes = el['classes']
+
         if 'gedicht-start' in classes:
             self.close_stanza()
             self.close_poem()
             self.open_poem()
 
         if 'titel' in classes:
-            self.current_title = text
+            self.current_title = el['text']
             self.close_stanza()
-            self.add_header(text)
+            self.add_header(el['text'])
 
         if 'autor' in classes:
-            self.current_author = text
+            self.current_author = el['text']
             self.close_stanza()
-            self.add_byline(text)
+            self.add_byline(el['text'])
 
         if 'strophe-start' in classes:
             self.close_stanza()
             self.open_stanza()
 
         if 'vers' in classes:
-            self.add_line(text)
+            self.add_line(el['text'])
 
         if tagname == 'PageBreak':
-            self.add_pb() # TODO page number, facsimile/png
+            self.add_pb(el['pagefile'])
 
 
-# Ordnet jedem Element im XML-Dokument ein 3-Tupel zu: Tagname, Klassen, Text
+# Ordnet jedem Element im XML-Dokument ein Dict zu, mit Tagname, Klassen, optional Text, optional Seiteninformation
 def _map_el(el):
-    tagname = el.tag
+    ret = {}
+    ret['tagname'] = el.tag
     attributes = dict(map(lambda a: (a.attrib['key'], a.attrib['value']), el.xpath('.//Annotation')))
     if 'classes' in attributes:
-        classes = attributes['classes'].split(' ')
+        ret['classes'] = attributes['classes'].split(' ')
     else:
-        classes = []
+        ret['classes'] = []
 
     if el.xpath('./TextEquiv'):
-        text = el.xpath('./TextEquiv')[0].text
-    else:
-        text = None
+        ret['text'] = el.xpath('./TextEquiv')[0].text
 
-    return tagname, classes, text
+    if el.tag == 'PageBreak':
+        ret['pagefile'] = el.attrib['filename']
+
+    return ret
 
 
 # Verändert den Eingabeiterator so, dass 'ignore'-Abstände zwei Elemente
@@ -135,19 +145,23 @@ def _process_ignored(it):
     it = peekable(it)
     try:
         while True:
-            (tagname, classes, text) = next(it)
+            el = next(it)
 
             while True:
                 try:
-                    n, c, t = it.peek()
-                    if (n == tagname and c == classes) or ('ignore' in c):
-                        next(it)
-                        if t != None: text = text + ' ' + t
+                    nextEl = it.peek() # 1-Lookahead
+                    if nextEl is None: break
+
+                    if (el['tagname'] == nextEl['tagname'] and el['classes'] == nextEl['classes']) or ('ignore' in nextEl['classes']):
+                        next(it) # Inkrementiere Pointer
+
+                        # Akkumuliere Text in el
+                        if 'text' in el and 'text' in nextEl: el['text'] = el['text'] + ' ' + nextEl['text'] 
                     else:
                         break
                 except StopIteration:
                     break
 
-            yield (tagname, classes, text)
+            yield el
     except StopIteration:
         pass

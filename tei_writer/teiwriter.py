@@ -1,5 +1,6 @@
 from lxml import etree
 
+from itertools import *
 from more_itertools import *
 
 
@@ -81,6 +82,25 @@ class TeiWriter:
         el.attrib['n'] = str(self.page_counter)
         self.page_counter += 1
 
+    def add_fw(self, fwtype, text):
+        if self.current_poem is None:
+            return
+
+        if self.current_stanza is not None:
+            parent = self.current_stanza
+        else:
+            parent = self.current_poem
+
+        last_el = parent[-1:]
+        if len(last_el)>0 and last_el[0].tag == 'fw' and last_el[0].attrib['type'] == fwtype:
+            # Füge nächste Zeile ein
+            br = etree.SubElement(last_el[0], 'br')
+            br.tail = text
+        else:
+            el = etree.SubElement(parent, 'fw')
+            el.attrib['type'] = fwtype
+            el.text = text
+
 
     def process(self, elements):
         p = _process_ignored(map(_map_el, elements))
@@ -123,6 +143,12 @@ class TeiWriter:
 
         if tagname == 'PageBreak':
             self.add_pb(el['pagefile'])
+
+        if 'kopfzeile' in classes:
+            self.add_fw('header', el['text'])
+
+        if 'fusszeile' in classes:
+            self.add_fw('footer', el['text'])
 
 
 # Ordnet jedem Element im XML-Dokument ein Dict zu, mit Tagname, Klassen, optional Text, optional Seiteninformation

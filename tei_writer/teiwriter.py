@@ -13,10 +13,11 @@ class TeiWriter:
         self.current_author = None
         self.current_poem = None
         self.current_stanza = None
-        self.page_counter = 1
+        self.page_counter = 0
 
     def close_poem(self):
         if self.current_poem is None:
+            # Operation ist idempotent
             return
 
         # enthält das aktuelle Gedicht keine Zeilen, wird es nicht ausgegeben
@@ -34,15 +35,15 @@ class TeiWriter:
         self.current_poem = None
 
     def open_poem(self):
+        if self.current_poem is not None:
+            # Operation ist idempotent
+            return
+
         self.current_title = None
         self.current_author = None
         self.current_stanza = None
         self.current_poem = etree.Element('div')
         self.current_poem.attrib['type'] = 'poem'
-
-        if self.postponed_pagebreak is not None:
-            self.add_pb(self.postponed_pagebreak)
-            self.postponed_pagebreak = None
 
     def close_stanza(self):
         if self.current_stanza is None:
@@ -57,7 +58,7 @@ class TeiWriter:
     def add_line(self, text):
         etree.SubElement(self.current_stanza, 'l').text = text
 
-    def add_header(self, text):
+    def add_title(self, text):
         head = etree.SubElement(self.current_poem, 'head')
         head.text = text
         head.attrib['type'] = 'head'
@@ -68,20 +69,24 @@ class TeiWriter:
         self.current_poem.append(byline)
 
     def add_pb(self, pagefile):
-        if self.current_poem is not None:
-            if self.current_stanza is not None:
-                el = etree.SubElement(self.current_stanza, 'pb')
-            else:
-                el = etree.SubElement(self.current_poem, 'pb')
+        if self.current_poem is None:
+            return
 
-            el.attrib['facs'] = pagefile
-            el.attrib['n'] = str(self.page_counter)
-            self.page_counter += 1
+        if self.current_stanza is not None:
+            el = etree.SubElement(self.current_stanza, 'pb')
         else:
-            self.postponed_pagebreak = pagefile
+            el = etree.SubElement(self.current_poem, 'pb')
+    
+        el.attrib['facs'] = pagefile
+        el.attrib['n'] = str(self.page_counter)
+        self.page_counter += 1
+
 
     def process(self, elements):
         p = _process_ignored(map(_map_el, elements))
+
+        # starte mit erstem Gedicht
+        self.open_poem()
 
         for el in p:
             self.process_element(el)
@@ -102,7 +107,7 @@ class TeiWriter:
         if 'titel' in classes:
             self.current_title = el['text']
             self.close_stanza()
-            self.add_header(el['text'])
+            self.add_title(el['text'])
 
         if 'autor' in classes:
             self.current_author = el['text']

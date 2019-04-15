@@ -10,6 +10,12 @@ class TeiWriter:
         self.root = etree.Element('teiCorpus')
         self.root.attrib['xmlns'] = "http://www.tei-c.org/ns/1.0"
 
+        self.file_desc = etree.SubElement(etree.SubElement(
+            self.root, 'teiHeader'), 'fileDesc')
+        etree.SubElement(etree.SubElement(self.file_desc, 'titleStmt'), 'title') # TODO
+        etree.SubElement(etree.SubElement(self.file_desc, 'publicationStmt'), 'p') # TODO
+        etree.SubElement(etree.SubElement(self.file_desc, 'sourceDesc'), 'p') # TODO
+
         self.current_title = None
         self.current_author = None
         self.current_poem = None
@@ -26,10 +32,15 @@ class TeiWriter:
             return
 
         tei_el = etree.SubElement(self.root, 'TEI')
-        title_stmt = etree.SubElement(etree.SubElement(etree.SubElement(
-            tei_el, 'teiHeader'), 'fileDesc'), 'titleStmt')
+        file_desc = etree.SubElement(etree.SubElement(
+            tei_el, 'teiHeader'), 'fileDesc')
+
+        title_stmt = etree.SubElement(file_desc, 'titleStmt')
         etree.SubElement(title_stmt, 'title').text = self.current_title
         etree.SubElement(title_stmt, 'author').text = self.current_author
+
+        etree.SubElement(etree.SubElement(file_desc, 'publicationStmt'), 'p') # TODO
+        etree.SubElement(etree.SubElement(file_desc, 'sourceDesc'), 'p') # TODO
 
         body = etree.SubElement(etree.SubElement(tei_el, 'text'), 'body')
         body.append(self.current_poem)
@@ -94,8 +105,8 @@ class TeiWriter:
         last_el = parent[-1:]
         if len(last_el)>0 and last_el[0].tag == 'fw' and last_el[0].attrib['type'] == fwtype:
             # Füge nächste Zeile ein
-            br = etree.SubElement(last_el[0], 'br')
-            br.tail = text
+            lb = etree.SubElement(last_el[0], 'lb')
+            lb.tail = text
         else:
             el = etree.SubElement(parent, 'fw')
             el.attrib['type'] = fwtype

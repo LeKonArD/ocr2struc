@@ -22,10 +22,14 @@ args = parser.parse_args()
 
 
 # Einlesen der Dateien, Sortieren
-parsed_lines = reduce(list.__add__, map(parse_file, args.input))
+
+parsed_documents = list(map(parse_file, args.input))
+parsed_lines = reduce(list.__add__, map(lambda x: x[1], parsed_documents))
 parsed_lines.sort(key=(lambda x: x.ax))
 parsed_lines.sort(key=(lambda x: x.ay))
 parsed_lines.sort(key=(lambda x: x.page.filename))
+
+pages_iterator = iter(sorted(list(set(map(lambda x: x[0], parsed_documents))), key=(lambda x: x.filename)))
 
 
 # Transduktion der Zielelemente
@@ -39,8 +43,11 @@ for line in parsed_lines:
 
     counter = counter + 1
     if current_page == None or current_page != line.page:
-        output.append(PageBreak(line.page))
-        current_page = line.page
+
+        while current_page != line.page:
+            current_page = next(pages_iterator)
+            output.append(PageBreak(current_page))
+
         space = VerticalSpace(line.ay, line.page)
         space.annotations["id"] = counter
         space.annotations["pos"] = "%d,%d %d,%d" % (0, 0, line.ax, line.ay)

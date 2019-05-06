@@ -23,7 +23,7 @@ def parse_file(file):
         return TextLine(text, page, coords[0], coords[1], coords[4], coords[5])
 
     lines = list(map(_parse_line, tree.xpath("//TextLine")))
-    return lines
+    return (page, lines)
     
 
 # https://stackoverflow.com/a/30233635

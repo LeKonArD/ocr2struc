@@ -20,5 +20,5 @@ python3 parse_structure.py -input /path/to/ocr4all_xml_results/* -output my_outp
 3. Open the html file web_editor/editor.html in your browser
   - As XML choose the output of parse_structure.py and as IMAGES the folder of ocr4all output images
 4. Annotate <br>
-![demo](demo.png)
+![demo](demo_img.png)
 5. Save your annotation by clickling the SAVE button

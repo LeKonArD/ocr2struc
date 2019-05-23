@@ -26,3 +26,16 @@ body {
 .items-table tr td select {
     width: 120px;
 }
+
+#edit-classes {
+    display: inline-block;
+}
+
+#classes-menu tr > td:nth-child(4) > * {
+    width: 100px;
+}
+
+#classes-menu.hidden {
+    display: none;
+}
+

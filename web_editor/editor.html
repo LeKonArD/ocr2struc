@@ -15,16 +15,21 @@
                 <p>
                     <label>XML:</label>
                     <input id="xmlinput" multiple=false type="file"></input>
-                    <label>Bilder:</label>
+                    <label>Images:</label>
                     <input id="imagedir" webkitdirectory type="file"></input>
-                    <button id="save">Speichern</button>
+                    <button id="save">Save</button>
                 </p>
                 <p>
                     <button id="prevpage">&lt;</button>
                     <select id="pageselect"></select>
                     <button id="nextpage">&gt;</button>
+                    &emsp;
+                    <button id="edit-classes">Edit classes</button>
                 </p>
             </div>
+
+            <table id="classes-menu" class="hidden">
+            </table>
 
             <table class="items-table">
                 <tbody>

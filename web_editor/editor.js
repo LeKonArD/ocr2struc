@@ -1,18 +1,5 @@
 var application = {
     currentDocument: null,
-    vspaceClasses: {
-        'gedicht-start': 'red',
-        'strophe-start': 'blue',
-        'ignore': '#773387'
-    },
-    lineClasses: {
-        'vers': 'darkblue',
-        'titel': 'darkred',
-        'autor': 'darkcyan',
-        'kopfzeile': 'darkorange',
-        'fusszeile': 'darkorange',
-        'sonstig': '#db66ff'
-    },
     classAttribute: 'classes'
 };
 
@@ -22,6 +9,10 @@ application.setDocument = function(doc) {
     const pagesCount = doc.querySelectorAll('PageBreak').length;
     document.getElementById('pageselect').innerHTML 
         = [...Array(pagesCount).keys()].map(x => `<option>${x + 1}</option>`).join('');
+
+    this.prepareClasses();
+
+    this.setClassesForm();
     this.setPage(1);
 }
 
@@ -46,7 +37,45 @@ application.getElementsOfPage = function(n) {
     return out;
 }
 
+application.prepareClasses = function() {
+    var that = this;
+
+    if (!that.currentDocument.querySelector('Document > Metadata')) {
+        that.currentDocument.querySelector('Document')
+            .prepend(new DOMParser().parseFromString('<Metadata />', 'application/xml').children[0]); 
+    }
+
+    if (!that.currentDocument.querySelector('Document > Metadata > Classes')) {
+        that.currentDocument.querySelector('Document > Metadata').
+            appendChild(new DOMParser().parseFromString('<Classes />', 'application/xml').children[0]); 
+    }
+
+    var added = [];
+
+    const pagesCount = that.currentDocument.querySelectorAll('PageBreak').length;
+    [...Array(pagesCount).keys()].map(n => n+1)
+        .map(n => that.getElementsOfPage(n))
+        .flat()
+        .map(xmlEl => xmlEl.querySelector(`Annotations > Annotation[key="${that.classAttribute}"]`))
+        .filter(a => !!a)
+        .forEach(a => {
+            const c = new DOMParser().parseFromString('<Class />', 'application/xml').children[0]; 
+            const className = a.attributes.value.value;
+            if (!className) return;
+            if (added.includes(className)) return;
+
+            c.setAttribute('name', a.attributes.value.value);
+            c.setAttribute('type', a.parentElement.parentElement.tagName);
+            c.setAttribute('color', '#000000');
+
+            that.currentDocument.querySelector(`Metadata > Classes`).appendChild(c);
+            added.push(className);
+        })
+}
+
 application.setPage = function(n) {
+    if (n == undefined) n = parseInt(document.getElementById('pageselect').value);
+
     var that = this;
     const pagesCount = this.currentDocument.querySelectorAll('PageBreak').length;
 
@@ -99,7 +128,7 @@ application.setForm = function(elements) {
         }
 
         if (x.matches('VerticalSpace')) {
-            const defaults = ['-'].concat(Object.keys(that.vspaceClasses));
+            const defaults = ['-'].concat(that.classNames('VerticalSpace'))
             const selectEl = document.createElement('select');
             selectEl.innerHTML = defaults.map(x => `<option>${x}</option>`).join('');
 
@@ -109,7 +138,7 @@ application.setForm = function(elements) {
 
             return selectEl;
         } else if (x.matches('TextLine')) {
-            const defaults = ['-'].concat(Object.keys(that.lineClasses));
+            const defaults = ['-'].concat(that.classNames('TextLine'));
             const selectEl = document.createElement('select');
             selectEl.innerHTML = defaults.map(x => `<option>${x}</option>`).join('');
 
@@ -129,7 +158,7 @@ application.setForm = function(elements) {
 
         const xmlid = x.querySelector('Annotation[key="id"]').attributes.value.value;
         if (x.matches('VerticalSpace')) {
-            return `<tr class="vspace" data-xml-id="${xmlid}"><td>[VSpace]</td><td>${form}</td></tr>`;
+            return `<tr class="vspace" data-xml-id="${xmlid}"><td>[VerticalSpace]</td><td>${form}</td></tr>`;
         } else if (x.matches('TextLine')) {
             var line = x.querySelector('TextEquiv').textContent;
             line = line == '' ? '[Leerzeile]' : line;
@@ -142,10 +171,10 @@ application.setForm = function(elements) {
     }).join('');
 
     document.querySelector('.items-table tbody').innerHTML = newTableHTML;
-    document.querySelectorAll('.items-table select').forEach(el => that.updateClass(el));
+    document.querySelectorAll('.items-table select').forEach(el => that.updateElementClass(el));
 
     document.querySelectorAll('.items-table select').forEach(el => el.addEventListener('change', () => {
-        that.updateClass(el);
+        that.updateElementClass(el);
         that.drawPage(elements, el.closest('tr').attributes['data-xml-id'].value);
     }));
 
@@ -193,12 +222,12 @@ application.drawPage = function(elements, selectedId) {
                 ctx.strokeStyle = '#008800';
                 ctx.lineWidth = 1;
                 ctx.globalAlpha = classStr ? .2 : .01;
-                ctx.fillStyle = classStr ? that.lineClasses[classStr] : '#000000';
+                ctx.fillStyle = classStr ? that.getClass(classStr).color : '#000000';
             } else {
                 ctx.strokeStyle = '#008800';
                 ctx.lineWidth = 2;
                 ctx.globalAlpha = classStr ? .4 : .10;
-                ctx.fillStyle = classStr ? that.lineClasses[classStr] : '#000000';
+                ctx.fillStyle = classStr ? that.getClass(classStr).color : '#000000';
             }
             ctx.fillRect(nums[0], nums[1], nums[2]-nums[0], nums[3]-nums[1]);
             ctx.globalAlpha = 1;
@@ -220,11 +249,11 @@ application.drawPage = function(elements, selectedId) {
             ctx.stroke();
 
             if (classStr) {
-                ctx.fillStyle = that.vspaceClasses[classStr];
+                ctx.fillStyle = that.getClass(classStr).color;
                 ctx.beginPath();
                 ctx.moveTo(nums[2], nums[3]);
-                ctx.lineTo(nums[2] - 15, nums[3] - 7);
-                ctx.lineTo(nums[2] - 15, nums[3] + 7);
+                ctx.lineTo(nums[2] - 30, nums[3] - 14);
+                ctx.lineTo(nums[2] - 30, nums[3] + 14);
                 ctx.closePath();
                 ctx.fill();
 
@@ -233,41 +262,197 @@ application.drawPage = function(elements, selectedId) {
     }
 }
 
-application.updateClass = function(el) {
+application.classNames = function(type) {
+    var that = this;
+
+    var classNames = [...this.currentDocument.querySelectorAll('Metadata > Classes > Class')]
+            .filter(c => type == undefined || c.attributes.type.value == type)
+            .map(c => c.attributes.name.value);
+
+    return classNames;
+}
+
+application.getClass = function(name) {
+    const c = this.currentDocument.querySelector(`Metadata > Classes > Class[name="${name}"`);
+
+    const type = c.attributes.type.value;
+    const color = c.attributes.color.value;
+
+    return {type: type, color: color};
+}
+
+
+
+application.setClassesForm = function() {
+    var that = this;
+
+    const classLine = function(name) {
+        const color = that.getClass(name).color;
+        const type = that.getClass(name).type;
+        return `<tr name="${name}">
+            <td><input type="color" value="${color}"></td>
+            <td><input type="text" value="${name}"></td>
+            <td><select class="type-select"><option ${type=='TextLine'?'selected':''} value="TextLine">Line</option><option value="VerticalSpace" ${type=='VerticalSpace'?'selected':''}>Space</option></select></td>
+            <td><select class="task-select"><option>Tasks</option><option>Apply to all</option><option>Apply to all on this page</option><option>Apply to all on this and following pages</option><option>Delete</option></td>
+        </tr>
+        `;
+
+    };
+
+    formStr = '<tbody>';
+    formStr += that.classNames().map(classLine).join('');
+    formStr += `<tr>
+            <td><input type="color"></td>
+            <td><input type="text"></td>
+            <td><select class="type-select"><option value="TextLine" selected>Line</option><option value="VerticalSpace">Space</option></select></td>
+            <td><button class="add-class">Add</button></td>
+        </tr>
+        `;
+
+    formStr += '</tbody>';
+
+    document.querySelector('#classes-menu').innerHTML = formStr;
+    document.querySelector('#classes-menu').querySelectorAll('tr:not(:last-child) input, tr:not(:last-child) select.type-select').forEach(i => i.addEventListener('change', () => {
+        that.updateClass(i.parentElement.parentElement);
+        that.setClassesForm();
+        that.setPage();
+    }));
+
+    document.querySelector('#classes-menu').querySelector('.add-class').addEventListener('click', () => {
+        const form = document.querySelector('#classes-menu tr:last-child');
+        const name = form.querySelector('input[type="text"]').value;
+        const color = form.querySelector('input[type="color"]').value;
+        const type = form.querySelector('select.type-select').value;
+
+        const c = new DOMParser().parseFromString('<Class />', 'application/xml').children[0]; 
+        c.setAttribute('name', name);
+        c.setAttribute('color', color);
+        c.setAttribute('type', type);
+
+        that.currentDocument.querySelector(`Metadata > Classes`).appendChild(c);
+        that.setClassesForm();
+        that.setPage();
+    });
+
+    document.querySelector('#classes-menu').querySelectorAll('select.task-select').forEach(i => i.addEventListener('change', () => {
+        const pagesCount = that.currentDocument.querySelectorAll('PageBreak').length;
+        const page = parseInt(document.getElementById('pageselect').value);
+        const name = i.parentElement.parentElement.getAttribute('name');
+        const type = i.parentElement.parentElement.querySelector('select.type-select').value;
+        if (i.value == 'Delete') {
+            that.deleteClass(name);
+            that.setClassesForm();
+            that.setPage();
+        } else if (i.value == 'Apply to all') {
+            [...Array(pagesCount).keys()].map(n => n+1)
+                .map(n => that.getElementsOfPage(n))
+                .flat()
+                .filter(xmlEl => xmlEl.matches(type))
+                .forEach(xmlEl => that.setElementClass(xmlEl, name));
+
+            that.setPage();
+        } else if (i.value == 'Apply to all on this page') {
+            that.getElementsOfPage(page)
+                .filter(xmlEl => xmlEl.matches(type))
+                .forEach(xmlEl => that.setElementClass(xmlEl, name));
+
+            that.setPage();
+        } else if (i.value == 'Apply to all on this and following pages') {
+            [...Array(pagesCount).keys()].map(n => n+1)
+                .filter(n => n >= page)
+                .map(n => that.getElementsOfPage(n))
+                .flat()
+                .filter(xmlEl => xmlEl.matches(type))
+                .forEach(xmlEl => that.setElementClass(xmlEl, name));
+
+            that.setPage();
+        }
+
+        i.selectedIndex = 0;
+
+    }));
+}
+
+application.updateClass = function(form) {
+    var that = this;
+
+    const oldname = form.getAttribute('name');
+    const name = form.querySelector('input[type="text"]').value;
+    const color = form.querySelector('input[type="color"]').value;
+    const type = form.querySelector('select.type-select').value;
+
+    const c = this.currentDocument.querySelector(`Metadata > Classes > Class[name="${oldname}"`);
+    c.setAttribute('name', name);
+    c.setAttribute('color', color);
+    c.setAttribute('type', type);
+
+    // propagate name change
+    this.currentDocument.querySelectorAll('Document > *').forEach(x => {
+        const ann = x.querySelector(`Annotations > Annotation[key="${that.classAttribute}"]`);
+        if (ann == undefined) return;
+
+        if (ann.attributes.value.value == oldname) {
+            if (x.matches(type)) {
+                ann.setAttribute('value', name);
+            } else {
+                ann.setAttribute('value', '');
+            }
+        }
+    });
+}
+
+application.deleteClass = function(name) {
+    var that = this;
+    this.currentDocument.querySelector(`Metadata > Classes > Class[name="${name}"`).remove();
+    this.currentDocument.querySelectorAll('Document > *').forEach(x => {
+        const ann = x.querySelector(`Annotations > Annotation[key="${that.classAttribute}"]`);
+        if (ann == undefined) return;
+
+        if (ann.attributes.value.value == name) {
+            ann.setAttribute('value', '');
+        }
+    });
+
+}
+
+application.updateElementClass = function(el) {
     const val = el.value;
     var color = undefined;
     if (val == '-') {
         el.closest('tr').style = '';
     } else {
-        color = color || this.vspaceClasses[val];
-        color = color || this.lineClasses[val];
+        color = color || this.getClass(val).color;
 
         el.closest('tr').style = `color: ${color}`;
     }
 
-    // TODO Add to XML
     const id = el.closest('tr').attributes['data-xml-id'].value;
     const xmlEl = this.currentDocument.querySelector(`Annotation[key="id"][value="${id}"]`).parentElement.parentElement;
-    const classStr = val == '-' ? '' : val;
+    const name = val == '-' ? '' : val;
 
+    this.setElementClass(xmlEl, name);
+}
 
-    var classAnnotation = xmlEl.querySelector(`Annotations > Annotation[key="${this.classAttribute}"]`);
-    if (!classAnnotation && classStr) {
+application.setElementClass = function(xmlEl, name) {
+    var classAnnotation = xmlEl.querySelector(`Annotation[key="${this.classAttribute}"]`);
+    if (!classAnnotation && name) {
         classAnnotation = new DOMParser().parseFromString('<Annotation />', 'application/xml').children[0];
         classAnnotation.setAttribute('key', this.classAttribute);
         xmlEl.querySelector('Annotations').appendChild(classAnnotation);
     }
 
-    if (classAnnotation) classAnnotation.setAttribute('value', classStr);
+    if (classAnnotation) classAnnotation.setAttribute('value', name);
 }
 
 application.saveFile = function(filename) {
     const serializer = new XMLSerializer();
     var sXML = serializer.serializeToString(this.currentDocument);
 
+    var blob = new Blob([sXML], { type: 'text/plain' });
+
     function download(filename, text) {
         var element = document.createElement('a');
-        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        element.setAttribute('href', URL.createObjectURL(blob));
         element.setAttribute('download', filename);
 
         element.style.display = 'none';
@@ -319,4 +504,8 @@ document.getElementById('pageselect').addEventListener('change', function() {
 document.getElementById('save').addEventListener('click', function() {
     var file = document.getElementById('xmlinput').files[0];
     application.saveFile(file.name);
+});
+
+document.getElementById('edit-classes').addEventListener('click', function() {
+    document.getElementById('classes-menu').classList.toggle('hidden');
 });

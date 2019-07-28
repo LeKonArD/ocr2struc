@@ -21,15 +21,16 @@ parser.add_argument('-output', required=False, type=argparse.FileType('w'), defa
 args = parser.parse_args()
 
 
-# Einlesen der Dateien, Sortieren
-
+# Einlesen der Dateien
 parsed_documents = list(map(parse_file, args.input))
-parsed_lines = reduce(list.__add__, map(lambda x: x[1], parsed_documents))
+
+# Sortieren der Zeilen
+parsed_lines = reduce(list.__add__, map(lambda d: d['lines'], parsed_documents))
 parsed_lines.sort(key=(lambda x: x.ax))
 parsed_lines.sort(key=(lambda x: x.ay))
 parsed_lines.sort(key=(lambda x: x.page.filename))
 
-pages_iterator = iter(sorted(list(set(map(lambda x: x[0], parsed_documents))), key=(lambda x: x.filename)))
+pages_iterator = iter(sorted(list(set(map(lambda x: x['page'], parsed_documents))), key=(lambda x: x.filename)))
 
 
 # Transduktion der Zielelemente
@@ -59,6 +60,11 @@ for line in parsed_lines:
 
     counter = counter + 1
     line.annotations["id"] = counter
+    
+    # TODO Spezialfall bei abbyy-Format
+    if ("beginpar" in line.annotations):
+        del line.annotations["beginpar"]
+        space.annotations["classes"] = "beginpar"
 
     output.append(space)
     output.append(line)

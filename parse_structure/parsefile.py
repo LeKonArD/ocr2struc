@@ -9,15 +9,15 @@ def parse_file(file, format=None):
     logging.info("Parsing file %s" % file.name)
     namespaces, tree = _strip_ns_prefix(etree.parse(file))
 
-    if (format is None):
+    if (format == None):
         if (any("primaresearch.org" in n for n in namespaces)):
             format = "primaresearch"
         if (any("abbyy.com" in n for n in namespaces)):
             format = "abbyy"
 
-    if (format is "primaresearch"):
+    if (format == "primaresearch"):
         return _parse_prima(file, tree)
-    elif (format is "abbyy"):
+    elif (format == "abbyy"):
         return _parse_abbyy(file, tree)
     else:
         logging.error("Could not recognize schema of %s" % file.name)
@@ -36,7 +36,10 @@ def _parse_prima(xmlFile, tree):
         coordsStr = el.xpath(".//Coords/@points")[0]
 
         coords = list(map(lambda x: int(x), re.findall("[0-9]+", coordsStr)))
-        return TextLine(text, page, coords[0], coords[1], coords[4], coords[5])
+        xcoords = list(map(lambda i: coords[i], range(0, len(coords), 2)))
+        ycoords = list(map(lambda i: coords[i], range(1, len(coords), 2)))
+
+        return TextLine(text, page, min(xcoords), min(ycoords), max(xcoords), max(ycoords))
 
     lines = list(map(_parse_line, tree.xpath("//TextLine")))
     return { 'page': page, 'lines': lines }

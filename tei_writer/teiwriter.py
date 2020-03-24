@@ -24,10 +24,10 @@ class TeiWriter:
 
     def close_poem(self):
         if self.current_poem is None:
-            # Operation ist idempotent
+            # operation idempotent
             return
 
-        # enthält das aktuelle Gedicht keine Zeilen, wird es nicht ausgegeben
+        # omit poems having no lines
         if len(self.current_poem.xpath('.//l')) == 0:
             return
 
@@ -48,7 +48,7 @@ class TeiWriter:
 
     def open_poem(self):
         if self.current_poem is not None:
-            # Operation ist idempotent
+            # operation idempotent
             return
 
         self.current_title = None
@@ -104,7 +104,7 @@ class TeiWriter:
 
         last_el = parent[-1:]
         if len(last_el)>0 and last_el[0].tag == 'fw' and last_el[0].attrib['type'] == fwtype:
-            # Füge nächste Zeile ein
+            # insert next line
             lb = etree.SubElement(last_el[0], 'lb')
             lb.tail = text
         else:
@@ -116,13 +116,13 @@ class TeiWriter:
     def process(self, elements):
         p = _process_ignored(map(_map_el, elements))
 
-        # starte mit erstem Gedicht
+        # start with first poem
         self.open_poem()
 
         for el in p:
             self.process_element(el)
 
-        # schließe noch offene Elemente
+        # close remaining open elements
         self.close_stanza()
         self.close_poem()
 
@@ -162,7 +162,8 @@ class TeiWriter:
             self.add_fw('footer', el['text'])
 
 
-# Ordnet jedem Element im XML-Dokument ein Dict zu, mit Tagname, Klassen, optional Text, optional Seiteninformation
+# assigns every element in the XML document a dict with tag name. classes,
+# optional text, optional page information
 def _map_el(el):
     ret = {}
     ret['tagname'] = el.tag
@@ -181,8 +182,8 @@ def _map_el(el):
     return ret
 
 
-# Verändert den Eingabeiterator so, dass 'ignore'-Abstände zwei Elemente
-# mit gleichen Klassen zusammenführt.
+# Changes input iterator s.t. elements of same class are joined by vertical
+# space of type 'ignore'
 def _process_ignored(it):
     it = peekable(it)
     try:
@@ -191,13 +192,13 @@ def _process_ignored(it):
 
             while True:
                 try:
-                    nextEl = it.peek() # 1-Lookahead
+                    nextEl = it.peek() # 1-lookahead
                     if nextEl is None: break
 
                     if (el['tagname'] == nextEl['tagname'] and el['classes'] == nextEl['classes']) or ('ignore' in nextEl['classes']):
-                        next(it) # Inkrementiere Pointer
+                        next(it) # increment pointer
 
-                        # Akkumuliere Text in el
+                        # accumulate text in el
                         if 'text' in el and 'text' in nextEl: el['text'] = el['text'] + ' ' + nextEl['text'] 
                     else:
                         break

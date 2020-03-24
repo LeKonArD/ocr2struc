@@ -24,12 +24,12 @@ logging.info('Parsing file %s' % args.input.name)
 tree = etree.parse(args.input)
 elements = tree.xpath('/Document/*')
 
-# Schreibe Basis-TEI
+# write basis TEI
 writer = TeiWriter()
 writer.page_counter = args.page_offset
 writer.process(elements)
 
-# Passe titleStmt/publicationStmt/sourceDesc des teiCorpus-Headers an
+# adjust titleStmt/publicationStmt/sourceDesc of teiCorpus headers
 def supply_header(header_tag, header_str):
     try:
         xmlstr ='<root>{0}</root>'.format(header_str)

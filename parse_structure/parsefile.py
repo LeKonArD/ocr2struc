@@ -27,7 +27,7 @@ def parse_file(file, format=None, sort_method='natural'):
 
 
 def _parse_prima(xmlFile, tree, **options):
-    # Page-Element nach Schema eindeutig: sequence/@maxOccurs == 1
+    # Page-Element unique by schema: sequence/@maxOccurs == 1
     imgFilename = tree.xpath("//Page/@imageFilename")[0]
     width = int(tree.xpath("//Page/@imageWidth")[0])
     height = int(tree.xpath("//Page/@imageHeight")[0])
@@ -45,8 +45,8 @@ def _parse_prima(xmlFile, tree, **options):
 
         return TextLine(text, page, min(xcoords), min(ycoords), max(xcoords), max(ycoords))
 
-    # sortiere TextRegions entsprechend der ReadingOrder
-    # falls nicht vorhanden, nach natürlicher Reihenfolge
+    # sort TextRegions according to ReadingOrder
+    # if not specified, sort by natural order
     if tree.xpath("//ReadingOrder/OrderedGroup"):
         readingOrder = list(tree.xpath("//ReadingOrder/OrderedGroup")[0])
         readingOrder.sort(key=lambda x: int(x.get('index')))
@@ -54,7 +54,7 @@ def _parse_prima(xmlFile, tree, **options):
     else:
         regions = list(tree.xpath("//TextRegion"))
 
-    # sortiere jeweilige Zeilen der TextRegion entsprechend der gewählten Option
+    # sort lines of TextRegion by chosen method
     regionLines = [list(map(_parse_line, r.xpath(".//TextLine"))) for r in regions]
     for lines in regionLines:
         if options['sort_method'] == 'position':
@@ -65,7 +65,7 @@ def _parse_prima(xmlFile, tree, **options):
     return { 'page': page, 'lines': list(itertools.chain(*regionLines)) }
 
 def _parse_abbyy(xmlFile, tree, **options):
-    # TODO Bilddatei in Abbyy nicht spezifiziert
+    # TODO Image path not specified by Abby
     imgFilename = re.sub(r'\.xml$', ".png", os.path.basename(xmlFile.name))
 
     width = int(tree.xpath("//page/@width")[0])

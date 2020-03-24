@@ -22,17 +22,17 @@ parser.add_argument('-output', required=False, type=argparse.FileType('w'), defa
 args = parser.parse_args()
 
 
-# Einlesen der Dateien
+# Read files
 parsed_documents = list(map(lambda f: parse_file(f, sort_method=args.sort), args.input))
 
-# Sortieren der Zeilen nach Seite
+# Sort all lines by page filename
 parsed_lines = reduce(list.__add__, map(lambda d: d['lines'], parsed_documents))
 parsed_lines.sort(key=(lambda x: x.page.filename))
 
 pages_iterator = iter(sorted(list(set(map(lambda x: x['page'], parsed_documents))), key=(lambda x: x.filename)))
 
 
-# Transduktion der Zielelemente
+# Transduce to target elements
 output = list()
 
 counter = 0
@@ -60,7 +60,7 @@ for line in parsed_lines:
     counter = counter + 1
     line.annotations["id"] = counter
     
-    # TODO Spezialfall bei abbyy-Format
+    # TODO edge case Abbyy-format
     if ("beginpar" in line.annotations):
         del line.annotations["beginpar"]
         space.annotations["classes"] = "beginpar"
@@ -70,7 +70,7 @@ for line in parsed_lines:
     last_line = line
 
 
-# Konstruktion der Output-XML
+# Construct XML output
 root = etree.Element("Document")
 for o in output:
     root.append(o.toelem())

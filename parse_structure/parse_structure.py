@@ -23,16 +23,11 @@ args = parser.parse_args()
 
 
 # Einlesen der Dateien
-parsed_documents = list(map(parse_file, args.input))
+parsed_documents = list(map(lambda f: parse_file(f, sort_method=args.sort), args.input))
 
-# Sortieren der Zeilen
+# Sortieren der Zeilen nach Seite
 parsed_lines = reduce(list.__add__, map(lambda d: d['lines'], parsed_documents))
-if args.sort == 'natural':
-    parsed_lines.sort(key=(lambda x: x.page.filename))
-elif args.sort == 'position':
-    parsed_lines.sort(key=(lambda x: x.ax))
-    parsed_lines.sort(key=(lambda x: x.ay))
-    parsed_lines.sort(key=(lambda x: x.page.filename))
+parsed_lines.sort(key=(lambda x: x.page.filename))
 
 pages_iterator = iter(sorted(list(set(map(lambda x: x['page'], parsed_documents))), key=(lambda x: x.filename)))
 

@@ -2,10 +2,12 @@ from lxml import etree
 import re
 import os
 import logging
+import itertools
 
 from elements import *
 
-def parse_file(file, format=None):
+def parse_file(file, format=None, sort_method='natural'):
+    options = locals()
     logging.info("Parsing file %s" % file.name)
     namespaces, tree = _strip_ns_prefix(etree.parse(file))
 
@@ -14,16 +16,17 @@ def parse_file(file, format=None):
             format = "primaresearch"
         if (any("abbyy.com" in n for n in namespaces)):
             format = "abbyy"
+    options['format'] = format
 
     if (format == "primaresearch"):
-        return _parse_prima(file, tree)
+        return _parse_prima(file, tree, **options)
     elif (format == "abbyy"):
-        return _parse_abbyy(file, tree)
+        return _parse_abbyy(file, tree, **options)
     else:
         logging.error("Could not recognize schema of %s" % file.name)
 
 
-def _parse_prima(xmlFile, tree):
+def _parse_prima(xmlFile, tree, **options):
     imgFilename = tree.xpath("//Page/@imageFilename")[0]
     width = int(tree.xpath("//Page/@imageWidth")[0])
     height = int(tree.xpath("//Page/@imageHeight")[0])
@@ -42,9 +45,12 @@ def _parse_prima(xmlFile, tree):
         return TextLine(text, page, min(xcoords), min(ycoords), max(xcoords), max(ycoords))
 
     lines = list(map(_parse_line, tree.xpath("//TextLine")))
+    if options['sort_method'] == 'position':
+        lines.sort(key=(lambda x: x.ax))
+        lines.sort(key=(lambda x: x.ay))
     return { 'page': page, 'lines': lines }
 
-def _parse_abbyy(xmlFile, tree):
+def _parse_abbyy(xmlFile, tree, **options):
     # TODO Bilddatei in Abbyy nicht spezifiziert
     imgFilename = re.sub(r'\.xml$', ".png", os.path.basename(xmlFile.name))
 
@@ -67,6 +73,11 @@ def _parse_abbyy(xmlFile, tree):
         return line
 
     lines = list(map(_parse_line, tree.xpath("//line")))
+    if options['sort_method'] == 'position':
+        lines.sort(key=(lambda x: x.ax))
+        lines.sort(key=(lambda x: x.ay))
+
+
     return { 'page': page, 'lines': lines }
     
 

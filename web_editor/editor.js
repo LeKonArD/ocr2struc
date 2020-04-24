@@ -52,12 +52,7 @@ application.prepareClasses = function() {
 
     var added = [];
 
-    const pagesCount = that.currentDocument.querySelectorAll('PageBreak').length;
-    [...Array(pagesCount).keys()].map(n => n+1)
-        .map(n => that.getElementsOfPage(n))
-        .flat()
-        .map(xmlEl => xmlEl.querySelector(`Annotations > Annotation[key="${that.classAttribute}"]`))
-        .filter(a => !!a)
+    that.currentDocument.querySelectorAll(`Annotation[key=${that.classAttribute}`)
         .forEach(a => {
             const c = new DOMParser().parseFromString('<Class />', 'application/xml').children[0]; 
             const className = a.attributes.value.value;
@@ -70,7 +65,7 @@ application.prepareClasses = function() {
 
             that.currentDocument.querySelector(`Metadata > Classes`).appendChild(c);
             added.push(className);
-        })
+        });
 }
 
 application.setPage = function(n) {
@@ -119,6 +114,10 @@ application.setPage = function(n) {
 
 application.setForm = function(elements) {
     var that = this;
+
+    const spaceClasses = that.classNames('VerticalSpace');
+    const textClasses = that.classNames('TextLine');
+
     function selectFormEl(x) {
         const ann = x.querySelector(`Annotations > Annotation[key="${that.classAttribute}"]`);
         
@@ -127,34 +126,21 @@ application.setForm = function(elements) {
             current = ann.attributes.value.value;
         }
 
+        var classes;
         if (x.matches('VerticalSpace')) {
-            const defaults = ['-'].concat(that.classNames('VerticalSpace'))
-            const selectEl = document.createElement('select');
-            selectEl.innerHTML = defaults.map(x => `<option>${x}</option>`).join('');
-
-            if (current) {
-                [...selectEl.querySelectorAll('option').values()].find(y => y.innerText == current).setAttribute('selected', 'selected');
-            }
-
-            return selectEl;
+            classes = spaceClasses;
         } else if (x.matches('TextLine')) {
-            const defaults = ['-'].concat(that.classNames('TextLine'));
-            const selectEl = document.createElement('select');
-            selectEl.innerHTML = defaults.map(x => `<option>${x}</option>`).join('');
-
-            if (current) {
-                [...selectEl.querySelectorAll('option').values()].find(y => y.innerText == current).setAttribute('selected', 'selected');
-            }
-
-            return selectEl;
+            classes = textClasses;
         } else {
             return null;
-            //return '<input type="text"></input>';
         }
+
+
+        return `<select>` + ['-'].concat(classes).map(x => x == current ? `<option selected>${x}</option>` : `<option>${x}</option>`).join('') + `</select>`;
     }
 
     const newTableHTML = elements.map(x => {
-        const form = selectFormEl(x).outerHTML;
+        const form = selectFormEl(x);
 
         const xmlid = x.querySelector('Annotation[key="id"]').attributes.value.value;
         if (x.matches('VerticalSpace')) {
